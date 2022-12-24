@@ -3,12 +3,13 @@
 > CS 144: Introduction to Computer Networking, Fall 2021
 
 * [Index Page](https://cs144.github.io/)
+* [Notes](https://github.com/huang-feiyu/Network-Notes)
 * [Lab FAQs](https://cs144.github.io/lab_faq.html)
 * [References](https://csdiy.wiki/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/CS144/)
 
 ## Assignments
 
-* [ ] Checkpoint 0: networking warmup
+* [x] Checkpoint 0: networking warmup -- [doc](./writeups/lab0.md)
 * [ ] Checkpoint 1: stitching substrings into a byte stream
 * [ ] Checkpoint 2: the TCP receiver
 * [ ] Checkpoint 3: the TCP sender
