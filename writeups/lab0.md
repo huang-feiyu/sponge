@@ -1,20 +1,23 @@
-Lab 0 Writeup
-=============
+# Lab 0 Writeup
 
-My name: [your name here]
+> [Checkpoint 0](https://cs144.github.io/assignments/lab0.pdf):
+> networking warmup
 
-My SUNet ID: [your sunetid here]
+* Set up an installation of Linux
+* Perform tasks over the Internet by hand
+* Write a small program in C++ to fetch a Web page over the Internet
+* Implement a reliable stream of bytes between a writer and a reader
 
-I collaborated with: [list sunetids here]
+## Prepare
 
-This lab took me about [n] hours to do. I [did/did not] attend the lab session.
+Environment:
 
-My secret code from section 2.1 was: [code here]
+* OS: Fedora 36 (Kernel 6.0.11)
+* IDE: CLion 2022.2.4
+* CXX: 8.2.0 => `export CC=gcc82; export CXX=g++82`
 
-- Optional: I had unexpected difficulty with: [describe]
+## Task #1: Networking by hand
 
-- Optional: I think you could make this lab better by: [describe]
-
-- Optional: I was surprised by: [describe]
-
-- Optional: I'm not sure about: [describe]
+1. Fetch a Web page.
+2. Send yourself an email.
+3. Listening and connecting. (use `ncat`)
