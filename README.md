@@ -10,7 +10,7 @@
 ## Assignments
 
 * [x] Checkpoint 0: networking warmup -- [doc](./writeups/lab0.md)
-* [ ] Checkpoint 1: stitching substrings into a byte stream
+* [x] Checkpoint 1: stitching substrings into a byte stream -- [doc](./writeups/lab1.md)
 * [ ] Checkpoint 2: the TCP receiver
 * [ ] Checkpoint 3: the TCP sender
 * [ ] Checkpoint 4: the TCP connection
