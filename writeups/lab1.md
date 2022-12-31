@@ -1,29 +1,24 @@
-Lab 1 Writeup
-=============
+# Lab 1 Writeup
 
-My name: [your name here]
+> [Checkpoint 1](https://cs144.github.io/assignments/lab1.pdf):
+> stitching substrings into a byte stream
 
-My SUNet ID: [your sunetid here]
+## Prepare
 
-I collaborated with: [list sunetids here]
+We will implement a TCP to provide the byte-stream abstraction between a pair of
+computers separated by an unreliable datagram network.
 
-I would like to thank/reward these classmates for their help: [list sunetids here]
+* Lab 0: ByteStream
+* Lab 1: StreamReassembler, stitches substrings into contiguous inorder byte
+  stream
+* Lab 2: TCPReceiver, handles inbound byte stream
+* Lab 3: TCPSender, handles outbound byte stream
+* Lab 4: TCPConnection, combine to create a working TCP
 
-This lab took me about [n] hours to do. I [did/did not] attend the lab session.
+![Sponge TCP](https://lzx-figure-bed.obs.dualstack.cn-north-4.myhuaweicloud.com/Figurebed/202201222256243.png)
 
-Program Structure and Design of the StreamReassembler:
-[]
+## Implementation
 
-Implementation Challenges:
-[]
-
-Remaining Bugs:
-[]
-
-- Optional: I had unexpected difficulty with: [describe]
-
-- Optional: I think you could make this lab better by: [describe]
-
-- Optional: I was surprised by: [describe]
-
-- Optional: I'm not sure about: [describe]
+What we need to do is to implement StreamReassembler, which receive substrings,
+consisting of a string of bytes, and the index of the first byte of that string
+within the larger stream.

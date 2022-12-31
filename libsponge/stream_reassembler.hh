@@ -4,16 +4,31 @@
 #include "byte_stream.hh"
 
 #include <cstdint>
+#include <set>
 #include <string>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
+    struct substring {
+        size_t begin = 0;
+        size_t length = 0;
+        size_t end = 0;
+        std::string data = "";
+        bool operator<(const substring t) const { return begin < t.begin; }
+    };
+
   private:
-    // Your code here -- add private members as necessary.
+    std::set<substring> substrings{};  //!< [Temporary] Unassembled substrings: index + data
+    size_t _unassembled_bytes = 0;     //!< The number of bytes in the substrings stored but not yet reassembled
+    size_t _next_index = 0;            //!< The next index to write to
+    bool _eof_flag = false;            //!< Flag indicates whether received eof
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
+
+    //! \brief Walk through all substrings and combine the overlap ones
+    void merge_substring();
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
