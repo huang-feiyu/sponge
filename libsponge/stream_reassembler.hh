@@ -26,7 +26,7 @@ class StreamReassembler {
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
 
-    substring merge(substring elm1, const substring elm2) {
+    size_t merge(substring &elm1, const substring &elm2) {
         substring x, y;
         if (elm1.begin > elm2.begin) {
             x = elm2;
@@ -36,15 +36,16 @@ class StreamReassembler {
             y = elm2;
         }
         if (x.begin + x.length < y.begin) {
-            return substring();  // no intersection, couldn't merge
+            return -1;
         } else if (x.begin + x.length >= y.begin + y.length) {
             elm1 = x;
+            return y.length;
         } else {
             elm1.begin = x.begin;
             elm1.data = x.data + y.data.substr(x.begin + x.length - y.begin);
             elm1.length = elm1.data.length();
+            return x.begin + x.length - y.begin;
         }
-        return elm1;
     }
 
   public:

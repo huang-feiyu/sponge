@@ -24,3 +24,4 @@ consisting of a string of bytes, and the index of the first byte of that string
 within the larger stream.
 
 * Solution 1: Use a huge contiguous string buffer
+* Solution 2: Merge every possible one
