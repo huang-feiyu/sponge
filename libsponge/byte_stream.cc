@@ -2,6 +2,14 @@
 
 ByteStream::ByteStream(const size_t capacity) : _capacity(capacity) {}
 
+size_t ByteStream::write(const char &ch) {
+    if (remaining_capacity() <= 0)
+        return 0;
+    _buffer.push_back(ch);
+    _w_cnt++;
+    return 1;
+}
+
 size_t ByteStream::write(const std::string &data) {
     auto length = data.size() > remaining_capacity() ? remaining_capacity() : data.size();
     _w_cnt += length;
