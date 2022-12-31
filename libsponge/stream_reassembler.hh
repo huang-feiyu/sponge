@@ -18,34 +18,27 @@ class StreamReassembler {
         std::string data = "";
         bool operator<(const substring t) const { return begin < t.begin; }
     };
-    std::set<substring> _substrings = {};  //!< The set of unassembled substrings
-    size_t _unassembled_bytes = 0;         //!< The number of bytes in the substrings stored but not yet reassembled
-    size_t _next_index = 0;                //!< The next index to write to
-    bool _eof_flag = false;                //!< Flag indicates whether received eof
+    std::multiset<substring> _substrings = {};  //!< The set of unassembled substrings
+    size_t _unassembled_bytes = 0;  //!< The number of bytes in the substrings stored but not yet reassembled
+    size_t _next_index = 0;         //!< The next index to write to
+    bool _eof_flag = false;         //!< Flag indicates whether received eof
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
 
-    size_t merge(substring &elm1, const substring &elm2) {
-        substring x, y;
+    substring merge(substring elm1, substring elm2) {
         if (elm1.begin > elm2.begin) {
-            x = elm2;
-            y = elm1;
-        } else {
-            x = elm1;
-            y = elm2;
+            std::swap(elm1, elm2);
         }
-        if (x.begin + x.length < y.begin) {
-            return -1;
-        } else if (x.begin + x.length >= y.begin + y.length) {
-            elm1 = x;
-            return y.length;
+        if (elm1.begin + elm1.length < elm2.begin) {
+            return substring();
+        } else if (elm1.begin + elm1.length >= elm2.begin + elm2.length) {
+            // elm1 contains elm2
         } else {
-            elm1.begin = x.begin;
-            elm1.data = x.data + y.data.substr(x.begin + x.length - y.begin);
+            elm1.data += elm2.data.substr(elm1.begin + elm1.length - elm2.begin);
             elm1.length = elm1.data.length();
-            return x.begin + x.length - y.begin;
         }
+        return elm1;
     }
 
   public:

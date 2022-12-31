@@ -8,11 +8,10 @@ StreamReassembler::StreamReassembler(const size_t capacity) : _output(capacity),
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const std::string &data, const size_t index, const bool eof) {
-    printf("\npush: %s [%zu,%lu) %s\n", data.c_str(), index, index + data.size(), eof ? "eof" : "");
     if (index >= _next_index + _capacity) {
         return;
     }
-    substring elm;
+    substring elm{index, data.length(), data};  // default: insert all
     if (index + data.length() <= _next_index) {
         goto end;
     } else if (index < _next_index) {
@@ -20,43 +19,27 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
         elm.data.assign(data.begin() + offset, data.end());
         elm.begin = index + offset;
         elm.length = elm.data.length();
-    } else {
-        elm.begin = index;
-        elm.length = data.length();
-        elm.data = data;
     }
     _unassembled_bytes += elm.length;
-
-    // merge substring
-    do {
-        // merge next
-        long merged_bytes = 0;
-        auto iter = _substrings.lower_bound(elm);
-        while (iter != _substrings.end() && (merged_bytes = merge(elm, *iter)) >= 0) {
-            _unassembled_bytes -= merged_bytes;
-            _substrings.erase(iter);
-            iter = _substrings.lower_bound(elm);
-        }
-        // merge prev
-        if (iter == _substrings.begin()) {
-            break;
-        }
-        iter--;
-        while ((merged_bytes = merge(elm, *iter)) >= 0) {
-            _unassembled_bytes -= merged_bytes;
-            _substrings.erase(iter);
-            iter = _substrings.lower_bound(elm);
-            if (iter == _substrings.begin()) {
-                break;
-            }
-            iter--;
-        }
-    } while (false);
     _substrings.emplace(elm);
 
-    printf("substrings:\n");
-    for (auto substr : _substrings) {
-        printf("\t%s [%zu,%lu)\n", substr.data.c_str(), substr.begin, substr.begin + substr.length);
+reloop:
+    // merge every possible pair
+    for (auto itr1 = _substrings.begin(); itr1 != _substrings.end(); itr1++) {
+        for (auto itr2 = itr1; itr2 != _substrings.end(); itr2++) {
+            if (itr2 == itr1) {
+                continue;
+            }
+            auto merged = merge(*itr1, *itr2);
+            if (merged.length != 0) {
+                _unassembled_bytes -= itr1->length + itr2->length - merged.length;
+                _substrings.erase(itr2);
+                _substrings.erase(itr1);
+                _substrings.emplace(merged);
+                goto reloop;
+            }
+            break;
+        }
     }
 
     if (!_substrings.empty() && _substrings.begin()->begin == _next_index) {
@@ -64,6 +47,7 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
         _next_index += write_bytes;
         _unassembled_bytes -= write_bytes;
         _substrings.erase(_substrings.begin());
+        // TODO: might write part of the substring
     }
 
 end:
