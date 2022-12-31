@@ -11,7 +11,7 @@
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
-    std::string _tmp_string;               //!< [Temporary] Unassembled strings
+    std::string _substring;                //!< [Temporary] Unassembled strings
     std::unordered_set<uint64_t> _bitmap;  //!< _bitmap[i] indicates whether to write the i_th char
     size_t _unassembled_bytes = 0;         //!< The number of bytes in the substrings stored but not yet reassembled
     size_t _next_index = 0;                //!< The next index to write to

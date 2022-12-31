@@ -22,3 +22,5 @@ computers separated by an unreliable datagram network.
 What we need to do is to implement StreamReassembler, which receive substrings,
 consisting of a string of bytes, and the index of the first byte of that string
 within the larger stream.
+
+* Solution 1: Use a huge contiguous string buffer

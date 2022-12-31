@@ -1,7 +1,7 @@
 #include "stream_reassembler.hh"
 
 StreamReassembler::StreamReassembler(const size_t capacity)
-    : _tmp_string(capacity, '\0'), _bitmap(capacity), _output(capacity), _capacity(capacity) {}
+    : _substring(capacity, '\0'), _bitmap(capacity), _output(capacity), _capacity(capacity) {}
 
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
@@ -14,25 +14,26 @@ void StreamReassembler::push_substring(const std::string &data, const size_t ind
         _eof_flag = true;
     }
 
+    // part of data has not been emitted
     if (index + data.size() > _next_index) {
         for (size_t i = (index > _next_index ? index : _next_index);
              i < _next_index + _output.remaining_capacity() && i < index + data.size();
              i++) {
             if (_bitmap.count(i) == 0) {
-                if (_tmp_string.capacity() <= i) {
-                    _tmp_string.reserve(i * 2);
+                if (_substring.capacity() <= i) {
+                    _substring.reserve(i * 2);
                 }
-                _tmp_string[i] = data[i - index];
+                _substring[i] = data[i - index];
                 _bitmap.insert(i);
                 _unassembled_bytes++;
             }
         }
-        while (_bitmap.count(_next_index) > 0) {
-            _output.write(_tmp_string[_next_index]);
-            _bitmap.erase(_next_index);
-            _next_index++;
-            _unassembled_bytes--;
-        }
+    }
+    while (_bitmap.count(_next_index) > 0) {
+        _output.write(_substring[_next_index]);
+        _bitmap.erase(_next_index);
+        _next_index++;
+        _unassembled_bytes--;
     }
 
     // No remain bytes
