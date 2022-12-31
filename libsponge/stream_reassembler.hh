@@ -4,16 +4,42 @@
 #include "byte_stream.hh"
 
 #include <cstdint>
+#include <set>
 #include <string>
+#include <unordered_set>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
-    // Your code here -- add private members as necessary.
+    struct substring {
+        size_t begin = 0;
+        size_t length = 0;
+        std::string data = "";
+        bool operator<(const substring t) const { return begin < t.begin; }
+    };
+    std::multiset<substring> _substrings = {};  //!< The set of unassembled substrings
+    size_t _unassembled_bytes = 0;  //!< The number of bytes in the substrings stored but not yet reassembled
+    size_t _next_index = 0;         //!< The next index to write to
+    bool _eof_flag = false;         //!< Flag indicates whether received eof
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
+
+    substring merge(substring elm1, substring elm2) {
+        if (elm1.begin > elm2.begin) {
+            std::swap(elm1, elm2);
+        }
+        if (elm1.begin + elm1.length < elm2.begin) {
+            return substring();
+        } else if (elm1.begin + elm1.length >= elm2.begin + elm2.length) {
+            // elm1 contains elm2
+        } else {
+            elm1.data += elm2.data.substr(elm1.begin + elm1.length - elm2.begin);
+            elm1.length = elm1.data.length();
+        }
+        return elm1;
+    }
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
