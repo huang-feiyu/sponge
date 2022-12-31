@@ -4,6 +4,7 @@
 #include "byte_stream.hh"
 
 #include <cstdint>
+#include <set>
 #include <string>
 #include <unordered_set>
 
@@ -11,14 +12,40 @@
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
-    std::string _substring;                //!< [Temporary] Unassembled strings
-    std::unordered_set<uint64_t> _bitmap;  //!< _bitmap[i] indicates whether to write the i_th char
+    struct substring {
+        size_t begin = 0;
+        size_t length = 0;
+        std::string data = "";
+        bool operator<(const substring t) const { return begin < t.begin; }
+    };
+    std::set<substring> _substrings = {};  //!< The set of unassembled substrings
     size_t _unassembled_bytes = 0;         //!< The number of bytes in the substrings stored but not yet reassembled
     size_t _next_index = 0;                //!< The next index to write to
     bool _eof_flag = false;                //!< Flag indicates whether received eof
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
+
+    substring merge(substring elm1, const substring elm2) {
+        substring x, y;
+        if (elm1.begin > elm2.begin) {
+            x = elm2;
+            y = elm1;
+        } else {
+            x = elm1;
+            y = elm2;
+        }
+        if (x.begin + x.length < y.begin) {
+            return substring();  // no intersection, couldn't merge
+        } else if (x.begin + x.length >= y.begin + y.length) {
+            elm1 = x;
+        } else {
+            elm1.begin = x.begin;
+            elm1.data = x.data + y.data.substr(x.begin + x.length - y.begin);
+            elm1.length = elm1.data.length();
+        }
+        return elm1;
+    }
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
