@@ -5,8 +5,7 @@
 //! \param isn The initial sequence number
 WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
     // Absolute Seqno -> Seqno
-
-    return WrappingInt32{0};
+    return WrappingInt32(static_cast<uint32_t>(n) + isn.raw_value());
 }
 
 //! Transform a WrappingInt32 into an "absolute" 64-bit sequence number (zero-indexed)
@@ -19,4 +18,12 @@ WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
 //! runs from the local TCPSender to the remote TCPReceiver and has one ISN,
 //! and the other stream runs from the remote TCPSender to the local TCPReceiver and
 //! has a different ISN.
-uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) { return {}; }
+uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
+    uint32_t offset = n - wrap(checkpoint, isn);
+    uint64_t ret = checkpoint + offset;
+    // offset is too large (i.e. a new round), move right too far => move left
+    if (offset >= (1u << 31) && ret >= (1ul << 32)) {
+        ret -= (1ul << 32);
+    }
+    return ret;
+}
