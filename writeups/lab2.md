@@ -1,29 +1,38 @@
-Lab 2 Writeup
-=============
+# Lab 2 Writeup
 
-My name: [your name here]
+> [Checkpoint 2](https://cs144.github.io/assignments/lab2.pdf):
+> the TCP receiver
 
-My SUNet ID: [your sunetid here]
+## Prepare
 
-I collaborated with: [list sunetids here]
+TCP receiver is not only responsible for writing to the incoming stream, but
+also for telling sender window (a range of indexes, constructed by ackno and
+window size). Using window, the receiver can control the flow of incoming data.
 
-I would like to thank/reward these classmates for their help: [list sunetids here]
+## Task #1: Translating between 64-bit indexes and 32-bit seqnos
 
-This lab took me about [n] hours to do. I [did/did not] attend the lab session.
+| Sequence Numbers  | Absolute Sequence Numbers | Stream Indices        |
+|-------------------|---------------------------|-----------------------|
+| Start at the ISN  | Start at 0                | Start at 0            |
+| Include SYN/FIN   | Include SYN/FIN           | Omit SYN/FIN          |
+| 32 bits, wrapping | 64 bits, non-wrapping     | 64 bits, non-wrapping |
+| "seqno"           | "absolute seqno"          | "stream index"        |
 
-Program Structure and Design of the TCPReceiver and wrap/unwrap routines:
-[]
+* `WrappingInt32 wrap(uint64_t n, WrappingInt32 isn)`: Convert *Absolute Seqno*
+  → *Seqno*
+* `uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint)`:
+  Convert *Seqno* → *Absolute Seqno*
 
-Implementation Challenges:
-[]
+## Task #2: TCP receiver
 
-Remaining Bugs:
-[]
+![TCP Segment](https://fiberbit.com.tw/wp-content/uploads/2013/12/TCP-segment.png)
 
-- Optional: I had unexpected difficulty with: [describe]
-
-- Optional: I think you could make this lab better by: [describe]
-
-- Optional: I was surprised by: [describe]
-
-- Optional: I'm not sure about: [describe]
+* (1) receive segments from its peer
+  1. Do not receive until SYN
+  2. Compute stream index for reassembler
+  3. Push string to reassembler
+* (2) reassemble the ByteStream using your StreamReassembler
+* (3) calculate the acknowledgment number (ackno) and the window size
+  * ackno: the number of bytes we have already acknowledged, i.e. the bytes we
+    have written (including SYN & FIN)
+  * window size: capacity - byte_stream.buffer_size
