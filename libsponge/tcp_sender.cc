@@ -52,10 +52,11 @@ void TCPSender::fill_window() {
 //! \param ackno The remote receiver's ackno (acknowledgment number)
 //! \param window_size The remote receiver's advertised window size
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
-    printf("ack_received: ");
     auto seqno = unwrap(ackno, _isn, _next_seqno);
-    assert(seqno <= _next_seqno);
-    printf("ack_seqno[%lu] _next_seqno[%lu]\n", seqno, _next_seqno);
+    if (seqno > _next_seqno) {
+        return; // invalid
+    }
+    printf("ack_received: ack_seqno[%lu] _next_seqno[%lu]\n", seqno, _next_seqno);
     _window_size = window_size;
     if (seqno <= _recv_seqno) {
         // have been received
