@@ -81,7 +81,24 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
-void TCPSender::tick(const size_t ms_since_last_tick) {}
+void TCPSender::tick(const size_t ms_since_last_tick) {
+    if (!_retransmission_timer_running) {
+        // no segment need to retransmit
+        return;
+    }
+    _retransmission_timer += ms_since_last_tick;
+    if (_retransmission_timer >= _retransmission_timeout && !_segments_wait.empty()) {
+        // (a) retransmit the youngest segment
+        _segments_out.emplace(_segments_wait.front());
+        // (b) if window size > 0, update meta-data: consecutive retransmissions & double RTO
+        if (_window_size > 0) {
+            _consecutive_retransmissions++;
+            _retransmission_timeout *= 2;
+        }
+        // (c) reset timer
+        _retransmission_timer = 0;
+    }
+}
 
 unsigned int TCPSender::consecutive_retransmissions() const { return _consecutive_retransmissions; }
 

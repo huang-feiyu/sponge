@@ -13,6 +13,7 @@ each segment.
 
 1. Send SYN & Receive ack for initialization
 2. Send data to fill window
+3. Resend data if timer is out
 
 * fill_window: reads from its input ByteStream and sends as many bytes as
   possible in the form of TCPSegments

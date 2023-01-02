@@ -27,10 +27,10 @@ class TCPSender {
 
     //! retransmission timer for the connection
     unsigned int _initial_retransmission_timeout;
-    unsigned int _retransmission_timeout = -1;
+    unsigned int _retransmission_timeout;
 
     bool _retransmission_timer_running = false;
-    unsigned int _retransmission_timer = -1;
+    unsigned int _retransmission_timer = 0;
 
     uint8_t _consecutive_retransmissions = 0;
 
