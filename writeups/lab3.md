@@ -12,6 +12,7 @@ The basic principle is to send whatever the receiver will allow us to send
 each segment.
 
 1. Send SYN & Receive ack for initialization
+2. Send data to fill window
 
 * fill_window: reads from its input ByteStream and sends as many bytes as
   possible in the form of TCPSegments

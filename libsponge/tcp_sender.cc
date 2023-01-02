@@ -26,6 +26,20 @@ void TCPSender::fill_window() {
         send_segment(segment);
         return;
     }
+
+    auto window_size = _window_size > 0 ? _window_size : 1;
+    // send as much as possible to fill up the window
+    while (!_stream.buffer_empty() && window_size - (_next_seqno - _recv_seqno) > 0) {
+        auto size = std::min(TCPConfig::MAX_PAYLOAD_SIZE, window_size - (_next_seqno - _recv_seqno));
+        TCPSegment segment;
+        segment.payload() = _stream.read(size);
+        // the last segment
+        if (_stream.eof()) {
+            segment.header().fin = true;
+            _fin_flag = true;
+        }
+        send_segment(segment);
+    }
 }
 
 //! \param ackno The remote receiver's ackno (acknowledgment number)
