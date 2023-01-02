@@ -34,19 +34,16 @@ void TCPSender::fill_window() {
     auto window_size = _window_size > 0 ? _window_size : 1;
     auto remain_size = window_size - (_next_seqno - _recv_seqno);
     assert(_next_seqno >= _recv_seqno);
-    if (_stream.eof() && _recv_seqno + window_size > _next_seqno) {
-        segment.header().fin = true;
-        _fin_flag = true;
-        send_segment(segment);
-        return;
-    }
     // send as much as possible to fill up the window
-    while (!_stream.buffer_empty() && (remain_size = window_size - (_next_seqno - _recv_seqno)) > 0) {
+    while (!_fin_flag && (remain_size = window_size - (_next_seqno - _recv_seqno)) > 0) {
         segment.payload() = _stream.read(std::min(TCPConfig::MAX_PAYLOAD_SIZE, remain_size));
         // the last segment
         if (_stream.eof()) {
             segment.header().fin = true;
             _fin_flag = true;
+        }
+        if (segment.length_in_sequence_space() == 0) {
+            return;
         }
         send_segment(segment);
     }
@@ -59,13 +56,13 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     auto seqno = unwrap(ackno, _isn, _next_seqno);
     assert(seqno <= _next_seqno);
     printf("ack_seqno[%lu] _next_seqno[%lu]\n", seqno, _next_seqno);
+    _window_size = window_size;
     if (seqno <= _recv_seqno) {
         // have been received
         return;
     }
     // update meta-data
     _recv_seqno = seqno;
-    _window_size = window_size;
 
     // remove received waiting segments
     while (!_segments_wait.empty()) {
@@ -93,7 +90,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     if (_segments_wait.empty()) {
         _retransmission_timer_running = false;
     } else {
-        _retransmission_timer_running = true;
+        assert(_retransmission_timer_running);
         _retransmission_timer = 0;
     }
     // (c) reset consecutive retransmissions
