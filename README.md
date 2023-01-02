@@ -12,7 +12,7 @@
 * [x] Checkpoint 0: networking warmup -- [doc](./writeups/lab0.md)
 * [x] Checkpoint 1: stitching substrings into a byte stream -- [doc](./writeups/lab1.md)
 * [x] Checkpoint 2: the TCP receiver -- [doc](./writeups/lab2.md)
-* [ ] Checkpoint 3: the TCP sender
+* [x] Checkpoint 3: the TCP sender -- [doc](./writeups/lab3.md)
 * [ ] Checkpoint 4: the TCP connection
 * [ ] Checkpoint 5: the network interface
 * [ ] Checkpoint 6: the IP router
