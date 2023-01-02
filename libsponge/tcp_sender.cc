@@ -20,9 +20,6 @@ uint64_t TCPSender::bytes_in_flight() const { return _bytes_in_flight; }
 
 void TCPSender::fill_window() {
     TCPSegment segment;
-    if (_fin_flag) {
-        return;
-    }
     if (!_syn_flag) {
         _syn_flag = true;
         // first hand-shaking: syn & seqno
@@ -37,8 +34,8 @@ void TCPSender::fill_window() {
     // send as much as possible to fill up the window
     while (!_fin_flag && (remain_size = window_size - (_next_seqno - _recv_seqno)) > 0) {
         segment.payload() = _stream.read(std::min(TCPConfig::MAX_PAYLOAD_SIZE, remain_size));
-        // the last segment
-        if (_stream.eof()) {
+        // the last segment (FIN occupies one byte)
+        if (_stream.eof() && segment.length_in_sequence_space() < remain_size) {
             segment.header().fin = true;
             _fin_flag = true;
         }
@@ -54,9 +51,8 @@ void TCPSender::fill_window() {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) {
     auto seqno = unwrap(ackno, _isn, _next_seqno);
     if (seqno > _next_seqno) {
-        return; // invalid
+        return;  // invalid
     }
-    printf("ack_received: ack_seqno[%lu] _next_seqno[%lu]\n", seqno, _next_seqno);
     _window_size = window_size;
     if (seqno <= _recv_seqno) {
         // have been received
@@ -72,11 +68,6 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
             // everything has been received
             _segments_wait.pop();
             _bytes_in_flight -= segment.length_in_sequence_space();
-            printf("ack_received: received [%lu,%lu) %s\n\tbytes in flight: %lu\n",
-                   unwrap(segment.header().seqno, _isn, _next_seqno),
-                   unwrap(segment.header().seqno, _isn, _next_seqno) + segment.length_in_sequence_space(),
-                   segment.payload().copy().c_str(),
-                   _bytes_in_flight);
         } else {
             break;
         }
@@ -100,7 +91,6 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
-    printf("tick        : timer [%d] + %zu\n", _retransmission_timer, ms_since_last_tick);
     if (!_retransmission_timer_running) {
         // no segment need to retransmit
         return;
@@ -110,14 +100,11 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
         auto segment = _segments_wait.front();
         // (a) retransmit the youngest segment
         _segments_out.emplace(segment);
-        printf("tick        : sent     [%lu,%lu) %s\n\tbytes in flight: %lu\n",
-               unwrap(segment.header().seqno, _isn, _next_seqno),
-               unwrap(segment.header().seqno, _isn, _next_seqno) + segment.length_in_sequence_space(),
-               segment.payload().copy().c_str(),
-               _bytes_in_flight);
-        // (b) update meta-data: consecutive retransmissions & double RTO
-        _consecutive_retransmissions++;
-        _retransmission_timeout *= 2;
+        // (b) if window size > 0, update meta-data: consecutive retransmissions & double RTO
+        if (_window_size > 0 || segment.header().syn) {
+            _consecutive_retransmissions++;
+            _retransmission_timeout *= 2;
+        }
         // (c) reset timer
         _retransmission_timer = 0;
     }
@@ -141,9 +128,4 @@ void TCPSender::send_segment(TCPSegment &segment) {
         _retransmission_timer_running = true;
         _retransmission_timer = 0;
     }
-    printf("send_segment: sent     [%lu,%lu) %s\n\tbytes in flight: %lu\n",
-           unwrap(segment.header().seqno, _isn, _next_seqno),
-           unwrap(segment.header().seqno, _isn, _next_seqno) + segment.length_in_sequence_space(),
-           segment.payload().copy().c_str(),
-           _bytes_in_flight);
 }
