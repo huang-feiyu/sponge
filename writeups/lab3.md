@@ -1,29 +1,22 @@
-Lab 3 Writeup
-=============
+# Lab 3 Writeup
 
-My name: [your name here]
+> [Checkpoint 3](https://cs144.github.io/assignments/lab3.pdf):
+> the TCP sender
 
-My SUNet ID: [your sunetid here]
+## TCP Sender
 
-I collaborated with: [list sunetids here]
+TCPSender: byte stream -> segments
 
-I would like to thank/reward these classmates for their help: [list sunetids here]
+The basic principle is to send whatever the receiver will allow us to send
+(filling the window), and keep retransmitting until the receiver acknowledges
+each segment.
 
-This lab took me about [n] hours to do. I [did/did not] attend the lab session.
+1. Send SYN & Receive ack for initialization
+2. Send data to fill window
+3. Resend data if timer is out
 
-Program Structure and Design of the TCPSender:
-[]
-
-Implementation Challenges:
-[]
-
-Remaining Bugs:
-[]
-
-- Optional: I had unexpected difficulty with: [describe]
-
-- Optional: I think you could make this lab better by: [describe]
-
-- Optional: I was surprised by: [describe]
-
-- Optional: I'm not sure about: [describe]
+* fill_window: reads from its input ByteStream and sends as many bytes as
+  possible in the form of TCPSegments
+* ack_received: updates outstanding segments
+* tick: might retransmit a segment
+* send_empty_segment: empty ack segment
