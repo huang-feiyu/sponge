@@ -33,8 +33,15 @@ void TCPSender::fill_window() {
 
     auto window_size = _window_size > 0 ? _window_size : 1;
     auto remain_size = window_size - (_next_seqno - _recv_seqno);
+    assert(_next_seqno >= _recv_seqno);
+    if (_stream.eof() && _recv_seqno + window_size > _next_seqno) {
+        segment.header().fin = true;
+        _fin_flag = true;
+        send_segment(segment);
+        return;
+    }
     // send as much as possible to fill up the window
-    while (!_stream.buffer_empty() && remain_size > 0) {
+    while (!_stream.buffer_empty() && (remain_size = window_size - (_next_seqno - _recv_seqno)) > 0) {
         segment.payload() = _stream.read(std::min(TCPConfig::MAX_PAYLOAD_SIZE, remain_size));
         // the last segment
         if (_stream.eof()) {
@@ -83,8 +90,10 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     // (a) set RTO to initial value
     _retransmission_timeout = _initial_retransmission_timeout;
     // (b) restart timer if there is any outstanding data
-    if (!_segments_wait.empty()) {
+    if (_segments_wait.empty()) {
         _retransmission_timer_running = false;
+    } else {
+        _retransmission_timer_running = true;
         _retransmission_timer = 0;
     }
     // (c) reset consecutive retransmissions
@@ -93,19 +102,24 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void TCPSender::tick(const size_t ms_since_last_tick) {
+    printf("tick        : timer [%d] + %zu\n", _retransmission_timer, ms_since_last_tick);
     if (!_retransmission_timer_running) {
         // no segment need to retransmit
         return;
     }
     _retransmission_timer += ms_since_last_tick;
     if (_retransmission_timer >= _retransmission_timeout && !_segments_wait.empty()) {
+        auto segment = _segments_wait.front();
         // (a) retransmit the youngest segment
-        _segments_out.emplace(_segments_wait.front());
-        // (b) if window size > 0, update meta-data: consecutive retransmissions & double RTO
-        if (_window_size > 0) {
-            _consecutive_retransmissions++;
-            _retransmission_timeout *= 2;
-        }
+        _segments_out.emplace(segment);
+        printf("tick        : sent     [%lu,%lu) %s\n\tbytes in flight: %lu\n",
+               unwrap(segment.header().seqno, _isn, _next_seqno),
+               unwrap(segment.header().seqno, _isn, _next_seqno) + segment.length_in_sequence_space(),
+               segment.payload().copy().c_str(),
+               _bytes_in_flight);
+        // (b) update meta-data: consecutive retransmissions & double RTO
+        _consecutive_retransmissions++;
+        _retransmission_timeout *= 2;
         // (c) reset timer
         _retransmission_timer = 0;
     }
@@ -126,7 +140,7 @@ void TCPSender::send_segment(TCPSegment &segment) {
     _bytes_in_flight += segment.length_in_sequence_space();
     _next_seqno += segment.length_in_sequence_space();
     if (!_retransmission_timer_running) {
-        _retransmission_timer = true;
+        _retransmission_timer_running = true;
         _retransmission_timer = 0;
     }
     printf("send_segment: sent     [%lu,%lu) %s\n\tbytes in flight: %lu\n",
