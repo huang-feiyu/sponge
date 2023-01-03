@@ -13,7 +13,6 @@ TCPSender::TCPSender(const size_t capacity, const uint16_t retx_timeout, const s
     , _initial_retransmission_timeout{retx_timeout}
     , _retransmission_timeout{retx_timeout}
     , _stream(capacity) {
-    printf("\n=====init timeout(%d) capacity(%zu)=====\n", retx_timeout, capacity);
 }
 
 uint64_t TCPSender::bytes_in_flight() const { return _bytes_in_flight; }
