@@ -1,29 +1,29 @@
-Lab 4 Writeup
-=============
+# Lab 4 Writeup
 
-My name: [your name here]
+> [Checkpoint 4](https://cs144.github.io/assignments/lab4.pdf):
+> the TCP connection
 
-My SUNet ID: [your sunetid here]
+## TCP connection
 
-I collaborated with: [list sunetids here]
+**!Important**: to test send packets really, we need to turn off firewall by
+`sudo systemctl stop firewalld`.
 
-I would like to thank/reward these classmates for their help: [list sunetids here]
+A *TCP connection* is considered as a peer. It's responsible for receiving and
+sending segments, making sure the sender and receiver are informed about and
+have a chance to contribute to the fields they care about for incoming and
+outgoing segments.
+Two parties (receiver & sender) participate in the TCP connection, and each
+party acts as both "sender" (of its own outbound byte-stream) and "receiver" (of
+an inbound byte-stream) at the same time.
 
-This lab took me about [n] hours to do. I [did/did not] attend the lab session.
-
-Program Structure and Design of the TCPConnection:
-[]
-
-Implementation Challenges:
-[]
-
-Remaining Bugs:
-[]
-
-- Optional: I had unexpected difficulty with: [describe]
-
-- Optional: I think you could make this lab better by: [describe]
-
-- Optional: I was surprised by: [describe]
-
-- Optional: I'm not sure about: [describe]
+* Receiving segments
+  * if `RST`: connection is done
+  * check normal fields `seqno`, `SYN`, `payload`, `FIN` in *receiver*
+  * if `ACK`: update *sender* states with `ackno` and `window_size`
+* Sending segments
+  * set normal fields `seqno`, `SYN`, `payload`, `FIN` in *sender*
+  * set `ACK`, `ackno`, `window_size` if possible (has established connection)
+    in *receiver*
+* When time passes
+  * update *sender*
+  * send `RST` if reaches max_attempts or lingers for a long time
