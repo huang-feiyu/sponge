@@ -27,3 +27,7 @@ an inbound byte-stream) at the same time.
 * When time passes
   * update *sender*
   * send `RST` if reaches max_attempts or lingers for a long time
+
+## Implementation
+
+1. Wire up ordinary methods to *receiver* & *sender*
