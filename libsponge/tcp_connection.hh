@@ -29,6 +29,9 @@ class TCPConnection {
     //! \name "Input" interface for the writer
     //!@{
 
+    //! \brief Send segments.
+    void send_segment();
+
     //! \brief Initiate a connection by sending a SYN segment
     void connect();
 

@@ -31,3 +31,4 @@ an inbound byte-stream) at the same time.
 ## Implementation
 
 1. Wire up ordinary methods to *receiver* & *sender*
+2. Send normal segments: send SYN first, send data, send FIN with "best effort"
