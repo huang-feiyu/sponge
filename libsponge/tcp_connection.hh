@@ -21,9 +21,19 @@ class TCPConnection {
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
 
+    size_t _time_since_last_segment_received = 0;
+
+    bool _active = true;
+
   public:
     //! \name "Input" interface for the writer
     //!@{
+
+    //! \brief Send segments.
+    void send_segment();
+
+    //! \brief Send an RST segment.
+    void send_rst_segment();
 
     //! \brief Initiate a connection by sending a SYN segment
     void connect();
