@@ -28,7 +28,52 @@ an inbound byte-stream) at the same time.
   * update *sender*
   * send `RST` if reaches max_attempts or lingers for a long time
 
+---
+
+3-Way handshake [normal]:
+```
+***Xxx***: peer role
+XXXXX    : state
+XXX -> XX: state transiting
+{XXX}    : transmitting segment
+
+***Client***                   ***Server***
+CLOSED                         LISTEN
+       --------{SYN}-------->                  handshake#1
+SYN SENT                       LISTEN -> SYN RECV
+
+       <-----{SYN/ACK}-------                  handshake#2
+SYN SENT -> ESTABLISHED        SYN RECV
+
+       --------{ACK}-------->                  handshake#3
+ESTABLISHED                    SYN RECV -> ESTABLISHED
+```
+
+3-Way handshake [simultaneous open]:
+```
+***Peer1***                   ***Peer2***
+CLOSED                         LISTEN
+       --------{SYN}-------->                  handshake#1 [1->2]
+       <-------{SYN}---------                  handshake#1 [2->1]
+SYN SENT                       SYN SENT
+
+# both ***Peer1*** and ***Peer2*** receive {SYN} in SYN SENT
+# => ***Peer1*** & ***Peer2***: SYN SENT -> SYN RECV, and to send handshake#3-like to each other
+
+SYN RECV                       SYN RECV
+       --------{ACK}-------->                  handshake#3-like [1->2]
+       <-------{ACK}---------                  handshake#3-like [2->1]
+SYN RECV -> ESTABLISHED        SYN RECV -> ESTABLISHED
+```
+
 ## Implementation
 
 1. Wire up ordinary methods to *receiver* & *sender*
-2. Send normal segments: send SYN first, send data, send FIN with "best effort"
+2. Send segments: send SYN first, send data, send FIN with "best effort"
+3. Receive segments: state machine
+
+---
+
+![State machine](https://user-images.githubusercontent.com/70138429/210497471-3a873eb8-f394-4642-ad8f-e7b0dccbc08b.png)
+
+![More precise](http://tcpipguide.com/free/diagrams/tcpfsm.png)

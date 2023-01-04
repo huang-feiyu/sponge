@@ -13,13 +13,58 @@ size_t TCPConnection::unassembled_bytes() const { return _receiver.unassembled_b
 
 size_t TCPConnection::time_since_last_segment_received() const { return _time_since_last_segment_received; }
 
-void TCPConnection::segment_received(const TCPSegment &seg) { DUMMY_CODE(seg); }
+void TCPConnection::segment_received(const TCPSegment &seg) {
+    if (!_active) {
+        return;
+    }
+    _time_since_last_segment_received = 0;  // reset timer
+
+    if (seg.header().rst) {
+        // connection is done
+        _sender.stream_in().set_error();
+        _receiver.stream_out().set_error();
+        _active = false;
+        return;
+    }
+
+    /*===== State machine =====*/
+    // ***server***, passive open: CLOSED => LISTEN (not included)
+    // LISTEN (***server*** receive handshake#1 [SYN] from ***client***) => SYN RECEIVED
+    if (_sender.next_seqno_absolute() == 0) {
+        if (seg.header().syn) {
+            _receiver.segment_received(seg);
+            connect();  // send handshake#2 [SYN/ACK]
+        }
+    }
+    // SYN SENT
+    else if (!_receiver.ackno().has_value() && _sender.next_seqno_absolute() == _sender.bytes_in_flight()) {
+        // SYN SENT (***client*** receive handshake#2 [SYN/ACK] from ***server***) => ESTABLISHED
+        if (seg.header().syn && seg.header().ack) {
+            _sender.ack_received(seg.header().ackno, seg.header().win);
+            _receiver.segment_received(seg);
+            _sender.send_empty_segment();  // send handshake#3 [ACK]
+            send_segment();
+        }
+        // SYN SENT (Exception: simultaneous open, receive SYN) => SYN RECEIVED
+        else if (seg.header().syn && !seg.header().ack) {
+            _receiver.segment_received(seg);
+            _sender.send_empty_segment();  // send handshake#3-like [ACK]
+            send_segment();
+        }
+    }
+    // SYN RECEIVED (***server*** receive handshake#3 [ACK] from ***client***) => ESTABLISHED
+    else if (_receiver.ackno().has_value() && _sender.next_seqno_absolute() == _sender.bytes_in_flight() &&
+             !_receiver.stream_out().input_ended()) {
+        _sender.ack_received(seg.header().ackno, seg.header().win);
+        _receiver.segment_received(seg);
+    }
+}
 
 bool TCPConnection::active() const { return _active; }
 
 size_t TCPConnection::write(const std::string &data) {
     auto res = _sender.stream_in().write(data);
-    send_segment(); // send new data if possible
+    send_segment();  // send new data if possible
     return res;
 }
 
@@ -33,7 +78,9 @@ void TCPConnection::end_input_stream() {
 }
 
 void TCPConnection::connect() {
-    // send a SYN segment
+    // send a SYN segment ([initiative] handshake#1 or handshake#2)
+    // if handshake#1, ***client*** active open: CLOSED => SYN SENT
+    // if handshake#2, LISTEN => SYN RECEIVED
     _sender.fill_window();
     send_segment();
 }
@@ -71,6 +118,7 @@ void TCPConnection::send_segment() {
     }
     //         preReq #2                         preReq #3                                preReq #1
     if (_sender.stream_in().eof() && _sender.bytes_in_flight() == 0 && _receiver.stream_out().input_ended()) {
+        // shutdown if necessary
         if (!_linger_after_streams_finish || _time_since_last_segment_received >= 10 * _cfg.rt_timeout) {
             _active = false;
         }
