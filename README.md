@@ -13,7 +13,7 @@
 * [x] Checkpoint 1: stitching substrings into a byte stream -- [doc](./writeups/lab1.md)
 * [x] Checkpoint 2: the TCP receiver -- [doc](./writeups/lab2.md)
 * [x] Checkpoint 3: the TCP sender -- [doc](./writeups/lab3.md)
-* [ ] Checkpoint 4: the TCP connection
+* [x] Checkpoint 4: the TCP connection -- [doc](./writeups/lab4.md)
 * [ ] Checkpoint 5: the network interface
 * [ ] Checkpoint 6: the IP router
 * [ ] Checkpoint 7: putting it all together
