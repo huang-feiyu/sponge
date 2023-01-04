@@ -16,6 +16,7 @@ Two parties (receiver & sender) participate in the TCP connection, and each
 party acts as both "sender" (of its own outbound byte-stream) and "receiver" (of
 an inbound byte-stream) at the same time.
 
+In general, *TCP connection* will do:
 * Receiving segments
   * if `RST`: connection is done
   * check normal fields `seqno`, `SYN`, `payload`, `FIN` in *receiver*
@@ -27,44 +28,6 @@ an inbound byte-stream) at the same time.
 * When time passes
   * update *sender*
   * send `RST` if reaches max_attempts or lingers for a long time
-
----
-
-3-Way handshake [normal]:
-```
-***Xxx***: peer role
-XXXXX    : state
-XXX -> XX: state transiting
-{XXX}    : transmitting segment
-
-***Client***                   ***Server***
-CLOSED                         LISTEN
-       --------{SYN}-------->                  handshake#1
-SYN SENT                       LISTEN -> SYN RECV
-
-       <-----{SYN/ACK}-------                  handshake#2
-SYN SENT -> ESTABLISHED        SYN RECV
-
-       --------{ACK}-------->                  handshake#3
-ESTABLISHED                    SYN RECV -> ESTABLISHED
-```
-
-3-Way handshake [simultaneous open]:
-```
-***Peer1***                   ***Peer2***
-CLOSED                         LISTEN
-       --------{SYN}-------->                  handshake#1 [1->2]
-       <-------{SYN}---------                  handshake#1 [2->1]
-SYN SENT                       SYN SENT
-
-# both ***Peer1*** and ***Peer2*** receive {SYN} in SYN SENT
-# => ***Peer1*** & ***Peer2***: SYN SENT -> SYN RECV, and to send handshake#3-like to each other
-
-SYN RECV                       SYN RECV
-       --------{ACK}-------->                  handshake#3-like [1->2]
-       <-------{ACK}---------                  handshake#3-like [2->1]
-SYN RECV -> ESTABLISHED        SYN RECV -> ESTABLISHED
-```
 
 ## Implementation
 
@@ -78,3 +41,100 @@ SYN RECV -> ESTABLISHED        SYN RECV -> ESTABLISHED
 ![State machine](https://user-images.githubusercontent.com/70138429/210497471-3a873eb8-f394-4642-ad8f-e7b0dccbc08b.png)
 
 ![More precise](http://tcpipguide.com/free/diagrams/tcpfsm.png)
+
+### 3-Way handshake
+
+3-Way handshake [normal]:
+```
+***Xxx***: peer role
+XXXXX    : state
+XXX -> XX: state transiting
+{XXX}    : transmitting segment
+
+***Client***                       ***Server***
+CLOSED                             LISTEN
+            --------{SYN}-------->                  handshake#1
+SYN SENT                           LISTEN
+                                   -> SYN RECV
+
+            <-----{SYN/ACK}-------                  handshake#2
+SYN SENT                           SYN RECV
+-> ESTAB
+
+            --------{ACK}-------->                  handshake#3
+ESTABLISHED                        SYN RECV
+                                   -> ESTAB
+```
+
+3-Way handshake [simultaneous open]:
+```
+# both ***Peer1*** and ***Peer2*** receive {SYN} in SYN SENT
+# => ***Peer1*** & ***Peer2***: SYN SENT -> SYN RECV, and to send handshake#3-like to each other
+
+***Peer1***                       ***Peer2***
+CLOSED                            LISTEN
+           --------{SYN}-------->                  handshake#1 [1->2]
+           <-------{SYN}---------                  handshake#1 [2->1]
+SYN SENT                          SYN SENT
+-> SYN RECV                       -> SYN RECV
+
+           --------{ACK}-------->                  handshake#3-like [1->2]
+           <-------{ACK}---------                  handshake#3-like [2->1]
+SYN RECV                          SYN RECV
+-> ESTAB                          -> ESTAB
+```
+
+### 4-Way handshake
+
+To distinguish with previous, I call it **4-Way goodbye**.
+More: why there is one more handshake?<br/>
+=> Previous one merge ACK/SYN together, but we need to wait for CLOSE/FIN in 
+when goodbye.
+
+4-Way goodbye [normal]:
+```
+***Client***                       ***Server***
+ESTAB                              ESTAB
+           --------{FIN}-------->                  goodbye#1
+FIN_WAIT_1                         ESTAB
+                                   -> CLOSE WAIT
+
+           <-------{ACK}---------                  goodbye#2
+FIN WAIT 1                         CLOSE WAIT
+-> FIN WAIT 2
+
+#=== ***Client*** still receive data from ***Server*** ===#
+
+          <--------{FIN}---------                  goodbye#3
+FIN WAIT 2                         CLOSE WAIT
+-> TIME WAIT                       -> LAST ACK
+
+          ---------{ACK}-------->                  goodbye#4
+TIME WAIT                          LAST ACK
+    |                              -> CLOSED
+    V
+  timeout
+CLOSED
+```
+
+4-Way goodbye [simultaneous close]:
+```
+# both ***Peer1*** and ***Peer2*** receive {FIN} in FIN WAIT 1
+# => ***Peer1*** & ***Peer2***: FIN WAIT 1 -> CLOSING, and to send goodbye#4-like to each other
+
+***Peer1***                       ***Peer2***
+ESTAB                              ESTAB
+           --------{FIN}-------->                  goodbye#1 [1->2]
+           <-------{FIN}---------                  goodbye#1 [2->1]
+FIN WAIT 1                         FIN WAIT 1
+-> CLOSING                         -> CLOSING
+
+           --------{ACK}-------->                  goodbye#4-like [1->2]
+           <-------{ACK}---------                  goodbye#4-like [2->1]
+CLOSING                            CLOSING
+-> TIME WAIT                       -> TIME WAIT
+    |                                  |
+    V                                  V
+  timeout                            timeout
+CLOSED                             CLOSED
+```
