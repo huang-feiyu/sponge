@@ -59,7 +59,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     else if (_sender.next_seqno_absolute() > _sender.bytes_in_flight() && !_sender.stream_in().eof()) {
         _sender.ack_received(seg.header().ackno, seg.header().win);
         _receiver.segment_received(seg);
-        // TODO: figure out keep alive
+        // to keep alive
         if (seg.length_in_sequence_space() > 0) {
             _sender.send_empty_segment();
         }
@@ -69,18 +69,18 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     // FIN WAIT 1
     else if (_sender.stream_in().eof() && _sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2 &&
              _sender.bytes_in_flight() > 0 && !_receiver.stream_out().input_ended()) {
-        if (seg.header().ack) {
-            // FIN WAIT 1 (***client*** receive goodbye#2 [ACK] from ***server***) => FIN WAIT 2
-            //                                  only if ackno is for goodbye#1 [FIN]
-            _sender.ack_received(seg.header().ackno, seg.header().win);
-            _receiver.segment_received(seg);
-            send_segment();  // normal stuff
-        } else if (seg.header().fin) {
+        if (seg.header().fin) {
             // FIN WAIT 1 (Exception: simultaneous open, receive FIN) => CLOSING
             _sender.ack_received(seg.header().ackno, seg.header().win);
             _receiver.segment_received(seg);
             _sender.send_empty_segment();  // send goodbye#4-like [ACK]
             send_segment();
+        } else if (seg.header().ack) {
+            // FIN WAIT 1 (***client*** receive goodbye#2 [ACK] from ***server***) => FIN WAIT 2
+            //                                  only if ackno is for goodbye#1 [FIN]
+            _sender.ack_received(seg.header().ackno, seg.header().win);
+            _receiver.segment_received(seg);
+            send_segment();  // normal stuff
         }
     }
     // FIN WAIT 2 (***client*** receive goodbye#3 [FIN] from ***server***) => TIME WAIT
@@ -95,7 +95,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     else if (_sender.stream_in().eof() && _sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2 &&
              _sender.bytes_in_flight() == 0 && _receiver.stream_out().input_ended()) {
         if (seg.header().fin) {
-            // 收到FIN，保持Time-Wait状态
+            // Keep in TIME WAIT
             _sender.ack_received(seg.header().ackno, seg.header().win);
             _receiver.segment_received(seg);
             _sender.send_empty_segment();
@@ -129,12 +129,8 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
 
     if (_sender.consecutive_retransmissions() > _cfg.MAX_RETX_ATTEMPTS) {
         // send RST segment => unclean shutdown
-        TCPSegment seg;
-        seg.header().rst = true;
-        _segments_out.push(seg);
-        _sender.stream_in().set_error();
-        _receiver.stream_out().set_error();
-        _active = false;
+        send_rst_segment();
+        return;
     }
 
     send_segment();
@@ -144,7 +140,7 @@ void TCPConnection::end_input_stream() {
     // send a FIN segment ([initiative] goodbye#1 [FIN] or goodbye#3 [FIN])
     // if goodbye#1, ***client*** active close: ESTABLISHED => FIN WAIT 1
     // if goodbye#3, ***server***             : CLOSE WAIT  => LAST ACK
-    _sender.stream_in().input_ended();
+    _sender.stream_in().end_input();
     _sender.fill_window();  // in order to send FIN as early as possible
     send_segment();
 }
@@ -162,12 +158,7 @@ TCPConnection::~TCPConnection() {
         if (active()) {
             std::cerr << "Warning: Unclean shutdown of TCPConnection\n";
             // send RST segment => unclean shutdown
-            TCPSegment seg;
-            seg.header().rst = true;
-            _segments_out.push(seg);
-            _sender.stream_in().set_error();
-            _receiver.stream_out().set_error();
-            _active = false;
+            send_rst_segment();
         }
     } catch (const std::exception &e) {
         std::cerr << "Exception destructing TCP FSM: " << e.what() << std::endl;
@@ -188,6 +179,7 @@ void TCPConnection::send_segment() {
     }
 
     // clean shutdown
+    // ***server*** in CLOSE WAIT => no need to linger
     if (_receiver.stream_out().input_ended() && !_sender.stream_in().eof()) {
         // If the inbound stream ends before the TCPConnection has reached EOF on its outbound stream,
         // this variable needs to be set to false.
@@ -196,8 +188,18 @@ void TCPConnection::send_segment() {
     //         preReq #2                         preReq #3                                preReq #1
     if (_sender.stream_in().eof() && _sender.bytes_in_flight() == 0 && _receiver.stream_out().input_ended()) {
         // shutdown if necessary
+        // ***server***: LAST ACK => CLOSED        ***client***: TIME WAIT ={time out}=> CLOSED
         if (!_linger_after_streams_finish || _time_since_last_segment_received >= 10 * _cfg.rt_timeout) {
             _active = false;
         }
     }
+}
+
+void TCPConnection::send_rst_segment() {
+    TCPSegment seg;
+    seg.header().rst = true;
+    _segments_out.push(seg);
+    _sender.stream_in().set_error();
+    _receiver.stream_out().set_error();
+    _active = false;
 }

@@ -32,6 +32,9 @@ class TCPConnection {
     //! \brief Send segments.
     void send_segment();
 
+    //! \brief Send an RST segment.
+    void send_rst_segment();
+
     //! \brief Initiate a connection by sending a SYN segment
     void connect();
 
