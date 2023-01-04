@@ -71,6 +71,7 @@ SYN RECV -> ESTABLISHED        SYN RECV -> ESTABLISHED
 1. Wire up ordinary methods to *receiver* & *sender*
 2. Send segments: send SYN first, send data, send FIN with "best effort"
 3. Receive segments: state machine
+4. When time passes, update *sender* and shutdown if necessary
 
 ---
 
