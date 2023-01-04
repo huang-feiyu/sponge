@@ -4,42 +4,21 @@
 #include "byte_stream.hh"
 
 #include <cstdint>
-#include <set>
+#include <map>
 #include <string>
-#include <unordered_set>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
 class StreamReassembler {
   private:
-    struct substring {
-        size_t begin = 0;
-        size_t length = 0;
-        std::string data = "";
-        bool operator<(const substring t) const { return begin < t.begin; }
-    };
-    std::multiset<substring> _substrings = {};  //!< The set of unassembled substrings
-    size_t _unassembled_bytes = 0;  //!< The number of bytes in the substrings stored but not yet reassembled
-    size_t _next_index = 0;         //!< The next index to write to
-    bool _eof_flag = false;         //!< Flag indicates whether received eof
+    // Your code here -- add private members as necessary.
+    std::map<size_t, std::string> _unassemble_strs;
+    size_t _next_assembled_idx;
+    size_t _unassembled_bytes_num;
+    size_t _eof_idx;
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-
-    substring merge(substring elm1, substring elm2) {
-        if (elm1.begin > elm2.begin) {
-            std::swap(elm1, elm2);
-        }
-        if (elm1.begin + elm1.length < elm2.begin) {
-            return substring();
-        } else if (elm1.begin + elm1.length >= elm2.begin + elm2.length) {
-            // elm1 contains elm2
-        } else {
-            elm1.data += elm2.data.substr(elm1.begin + elm1.length - elm2.begin);
-            elm1.length = elm1.data.length();
-        }
-        return elm1;
-    }
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
@@ -47,8 +26,7 @@ class StreamReassembler {
     //! and those that have not yet been reassembled.
     StreamReassembler(const size_t capacity);
 
-    uint32_t get_next() const { return _output.input_ended() ? _next_index + 1 : _next_index + 0; }
-
+    size_t get_next() { return _next_assembled_idx; }
     //! \brief Receive a substring and write any newly contiguous bytes into the stream.
     //!
     //! The StreamReassembler will stay within the memory limits of the `capacity`.

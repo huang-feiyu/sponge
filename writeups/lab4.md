@@ -138,3 +138,23 @@ CLOSING                            CLOSING
   timeout                            timeout
 CLOSED                             CLOSED
 ```
+
+## Performance Optimization
+
+Too slow to show *tcp_benchmark* => Update stream reassembler.
+
+```
+CPU-limited throughput                : 1.10 Gbit/s
+CPU-limited throughput with reordering: 1.04 Gbit/s
+```
+
+Update [./etc/cflags.cmake](../etc/cflags.cmake) "-g" to "-Og -pg", and run
+`gprof ./apps/tcp_benchmark > prof.txt` to find out what effects most.
+
+```
+ 32.82      0.43     0.43   219544     0.00     0.00  void std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_construct<std::_Deque_iterator<char, char const&, char const*> >(std::_Deque_iterator<char, char const&, char const*>, std::_Deque_iterator<char, char const&, char const*>, std::forward_iterator_tag)
+ 31.30      0.84     0.41   219540     0.00     0.00  ByteStream::write(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
+ 26.72      1.19     0.35   219544     0.00     0.00  ByteStream::pop_output(unsigned long)
+```
+
+=> <s>Update byte stream.</s>
