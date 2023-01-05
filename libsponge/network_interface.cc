@@ -19,6 +19,38 @@ NetworkInterface::NetworkInterface(const EthernetAddress &ethernet_address, cons
 void NetworkInterface::send_datagram(const InternetDatagram &dgram, const Address &next_hop) {
     // convert IP address of next hop to raw 32-bit representation (used in ARP header)
     const uint32_t next_hop_ip = next_hop.ipv4_numeric();
+    // Find MAC according to IP addr
+    auto itr = _arp_table.find(next_hop_ip);
+
+    if (itr != _arp_table.end()) {
+        // encapsulate datagram and send frame right now
+        EthernetFrame frame;
+        frame.header().type = frame.header().TYPE_IPv4;
+        frame.header().src = _ethernet_address;
+        frame.header().dst = itr->second.mac;
+        frame.payload() = dgram.serialize();
+        _frames_out.emplace(frame);
+    } else {
+        // broadcast ARP request and queue IP datagram until knowing where to send it
+        if (_waiting_ips.find(next_hop_ip) == _waiting_ips.end()) {
+            ARPMessage arp_req;
+            arp_req.opcode = ARPMessage::OPCODE_REQUEST;
+            arp_req.sender_ethernet_address = _ethernet_address;
+            arp_req.sender_ip_address = _ip_address.ipv4_numeric();
+            arp_req.target_ethernet_address = ETHERNET_BROADCAST;  // placeholder
+            arp_req.target_ip_address = next_hop_ip;
+
+            EthernetFrame frame;
+            frame.header().type = frame.header().TYPE_ARP;
+            frame.header().src = _ethernet_address;
+            frame.header().dst = ETHERNET_BROADCAST;  // placeholder
+            frame.payload() = arp_req.serialize();
+            _frames_out.emplace(frame);
+
+            _waiting_ips[next_hop_ip] = _default_arp_req_ttl;
+        }
+        _waiting_datagrams.emplace_back(std::make_pair(next_hop, dgram));
+    }
 }
 
 //! \param[in] frame the incoming Ethernet frame

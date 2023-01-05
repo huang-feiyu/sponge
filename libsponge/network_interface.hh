@@ -5,6 +5,7 @@
 #include "tcp_over_ip.hh"
 #include "tun.hh"
 
+#include <map>
 #include <optional>
 #include <queue>
 
@@ -31,6 +32,16 @@
 //! and learns or replies as necessary.
 class NetworkInterface {
   private:
+    struct arp_item {
+        EthernetAddress mac;
+        size_t ttl;
+    };
+
+    std::map<uint32_t, arp_item> _arp_table;  //!< IP <=> MAC
+
+    std::map<uint32_t, size_t> _waiting_ips;  //!< ARP broadcast request to IP, with timeout
+    std::vector<std::pair<Address, InternetDatagram>> _waiting_datagrams;  //!< IP addr with datagram to be sent
+
     //! Ethernet (known as hardware, network-access-layer, or link-layer) address of the interface
     EthernetAddress _ethernet_address;
 
@@ -39,6 +50,9 @@ class NetworkInterface {
 
     //! outbound queue of Ethernet frames that the NetworkInterface wants sent
     std::queue<EthernetFrame> _frames_out{};
+
+    const static size_t _default_arp_item_ttl = 30 * 1000;
+    const static size_t _default_arp_req_ttl = 5 * 1000;
 
   public:
     //! \brief Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer) addresses

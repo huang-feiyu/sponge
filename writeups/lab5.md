@@ -35,7 +35,7 @@ The protocol for this is called the **Address Resolution Protocol**, or ARP.
     Create an Ethernet frame (IPV4), set the payload to be the serialized
     datagram, and set the source and destination addresses.
   * If the destination Ethernet address is *unknown*, **broadcast** an ARP
-    request for the next hop’s Ethernet address, and **queue** the IP datagram,
+    request for the next hop's Ethernet address, and **queue** the IP datagram,
     so it can be sent after the ARP reply is received.
   * **Do not send a 2nd request in 5 seconds**, just wait for a reply.
 * Receive *frame*
