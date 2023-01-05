@@ -3,6 +3,7 @@
 #include "arp_message.hh"
 #include "ethernet_frame.hh"
 
+#include <cassert>
 #include <iostream>
 
 //! \param[in] ethernet_address Ethernet (what ARP calls "hardware") address of the interface
@@ -31,8 +32,9 @@ void NetworkInterface::send_datagram(const InternetDatagram &dgram, const Addres
         frame.payload() = dgram.serialize();
         _frames_out.emplace(frame);
     } else {
-        // broadcast ARP request and queue IP datagram until knowing where to send it
+        /* broadcast ARP request and queue IP datagram until knowing where to send it */
         if (_waiting_ips.find(next_hop_ip) == _waiting_ips.end()) {
+            // broadcast ARP request
             ARPMessage arp_req;
             arp_req.opcode = ARPMessage::OPCODE_REQUEST;
             arp_req.sender_ethernet_address = _ethernet_address;
@@ -49,12 +51,69 @@ void NetworkInterface::send_datagram(const InternetDatagram &dgram, const Addres
 
             _waiting_ips[next_hop_ip] = _default_arp_req_ttl;
         }
+        // queue IP datagram
         _waiting_datagrams.emplace_back(std::make_pair(next_hop, dgram));
     }
 }
 
 //! \param[in] frame the incoming Ethernet frame
-std::optional<InternetDatagram> NetworkInterface::recv_frame(const EthernetFrame &frame) { return {}; }
+std::optional<InternetDatagram> NetworkInterface::recv_frame(const EthernetFrame &frame) {
+    if (frame.header().dst != _ethernet_address && frame.header().dst != ETHERNET_BROADCAST) {
+        // ignore other MAC frame
+        return std::nullopt;
+    }
+    if (frame.header().type == frame.header().TYPE_IPv4) {
+        // Parse IPv4 frame and return datagram
+        InternetDatagram datagram;
+        if (datagram.parse(frame.payload()) != ParseResult::NoError) {
+            return std::nullopt;
+        }
+        return datagram;
+    } else {
+        assert(frame.header().type == frame.header().TYPE_ARP);
+
+        /* Parse ARP message and learn mappings [reply for ARP request] */
+        ARPMessage arp_msg;
+        if (arp_msg.parse(frame.payload()) != ParseResult::NoError) {
+            return std::nullopt;
+        }
+
+        // learn sender's mappings
+        auto src_ip = arp_msg.sender_ip_address;
+        auto src_mac = arp_msg.sender_ethernet_address;
+        _arp_table[src_ip] = {src_mac, _default_arp_item_ttl};
+        _waiting_ips.erase(src_ip);
+        for (auto itr = _waiting_datagrams.begin(); itr != _waiting_datagrams.end();) {
+            if (itr->first.ipv4_numeric() == src_ip) {
+                send_datagram(itr->second, itr->first);
+                itr = _waiting_datagrams.erase(itr);
+            } else {
+                itr++;
+            }
+        }
+
+        // reply for ARP request
+        if (arp_msg.opcode == ARPMessage::OPCODE_REQUEST) {
+            auto dst_ip = arp_msg.target_ip_address;
+            auto dst_mac = arp_msg.target_ethernet_address;
+
+            ARPMessage arp_rpl;
+            arp_rpl.opcode = ARPMessage::OPCODE_REPLY;
+            arp_rpl.sender_ethernet_address = _ethernet_address;
+            arp_rpl.sender_ip_address = _ip_address.ipv4_numeric();
+            arp_rpl.target_ethernet_address = dst_mac;
+            arp_rpl.target_ip_address = dst_ip;
+
+            EthernetFrame rpl_frame;
+            rpl_frame.header().type = frame.header().TYPE_ARP;
+            rpl_frame.header().src = _ethernet_address;
+            rpl_frame.header().dst = dst_mac;
+            rpl_frame.payload() = arp_rpl.serialize();
+            _frames_out.emplace(rpl_frame);
+        }
+    }
+    return std::nullopt;
+}
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void NetworkInterface::tick(const size_t ms_since_last_tick) {}
