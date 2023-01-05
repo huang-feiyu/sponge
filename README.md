@@ -14,7 +14,7 @@
 * [x] Checkpoint 2: the TCP receiver -- [doc](./writeups/lab2.md)
 * [x] Checkpoint 3: the TCP sender -- [doc](./writeups/lab3.md)
 * [x] Checkpoint 4: the TCP connection -- [doc](./writeups/lab4.md)
-* [ ] Checkpoint 5: the network interface
+* [x] Checkpoint 5: the network interface -- [doc](./writeups/lab5.md)
 * [ ] Checkpoint 6: the IP router
 * [ ] Checkpoint 7: putting it all together
 
