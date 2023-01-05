@@ -37,10 +37,10 @@ class NetworkInterface {
         size_t ttl;
     };
 
-    std::map<uint32_t, arp_item> _arp_table;  //!< IP <=> MAC
+    std::map<uint32_t, arp_item> _arp_table{};  //!< IP <=> MAC
 
-    std::map<uint32_t, size_t> _waiting_ips;  //!< ARP broadcast request to IP, with timeout
-    std::vector<std::pair<Address, InternetDatagram>> _waiting_datagrams;  //!< IP addr with datagram to be sent
+    std::map<uint32_t, size_t> _waiting_ips{};  //!< ARP broadcast request to IP, with timeout
+    std::vector<std::pair<Address, InternetDatagram>> _waiting_datagrams{};  //!< IP addr with datagram to be sent
 
     //! Ethernet (known as hardware, network-access-layer, or link-layer) address of the interface
     EthernetAddress _ethernet_address;

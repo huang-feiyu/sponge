@@ -116,4 +116,39 @@ std::optional<InternetDatagram> NetworkInterface::recv_frame(const EthernetFrame
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
-void NetworkInterface::tick(const size_t ms_since_last_tick) {}
+void NetworkInterface::tick(const size_t ms_since_last_tick) {
+    // Expire any IP-to-Ethernet mappings that have expired
+    for (auto itr = _arp_table.begin(); itr != _arp_table.end();) {
+        if (itr->second.ttl <= ms_since_last_tick) {
+            itr = _arp_table.erase(itr);
+        } else {
+            itr->second.ttl -= ms_since_last_tick;
+            itr++;
+        }
+    }
+
+    // Retransmit ARP request if 5 seconds passed
+    for (auto itr = _waiting_ips.begin(); itr != _waiting_ips.end();) {
+        if (itr->second <= ms_since_last_tick) {
+            // broadcast ARP request
+            ARPMessage arp_req;
+            arp_req.opcode = ARPMessage::OPCODE_REQUEST;
+            arp_req.sender_ethernet_address = _ethernet_address;
+            arp_req.sender_ip_address = _ip_address.ipv4_numeric();
+            arp_req.target_ethernet_address = ETHERNET_BROADCAST;  // placeholder
+            arp_req.target_ip_address = itr->first;
+
+            EthernetFrame frame;
+            frame.header().type = frame.header().TYPE_ARP;
+            frame.header().src = _ethernet_address;
+            frame.header().dst = ETHERNET_BROADCAST;  // placeholder
+            frame.payload() = arp_req.serialize();
+            _frames_out.emplace(frame);
+
+            itr->second = _default_arp_req_ttl;
+        } else {
+            itr->second -= ms_since_last_tick;
+            itr++;
+        }
+    }
+}
