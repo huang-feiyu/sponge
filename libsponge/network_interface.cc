@@ -34,21 +34,7 @@ void NetworkInterface::send_datagram(const InternetDatagram &dgram, const Addres
     } else {
         /* broadcast ARP request and queue IP datagram until knowing where to send it */
         if (_waiting_ips.find(next_hop_ip) == _waiting_ips.end()) {
-            // broadcast ARP request
-            ARPMessage arp_req;
-            arp_req.opcode = ARPMessage::OPCODE_REQUEST;
-            arp_req.sender_ethernet_address = _ethernet_address;
-            arp_req.sender_ip_address = _ip_address.ipv4_numeric();
-            arp_req.target_ethernet_address = ETHERNET_BROADCAST;  // placeholder
-            arp_req.target_ip_address = next_hop_ip;
-
-            EthernetFrame frame;
-            frame.header().type = frame.header().TYPE_ARP;
-            frame.header().src = _ethernet_address;
-            frame.header().dst = ETHERNET_BROADCAST;  // placeholder
-            frame.payload() = arp_req.serialize();
-            _frames_out.emplace(frame);
-
+            broadcast(next_hop_ip);
             _waiting_ips[next_hop_ip] = _default_arp_req_ttl;
         }
         // queue IP datagram
@@ -93,21 +79,18 @@ std::optional<InternetDatagram> NetworkInterface::recv_frame(const EthernetFrame
         }
 
         // reply for ARP request
-        if (arp_msg.opcode == ARPMessage::OPCODE_REQUEST) {
-            auto dst_ip = arp_msg.target_ip_address;
-            auto dst_mac = arp_msg.target_ethernet_address;
-
+        if (arp_msg.opcode == ARPMessage::OPCODE_REQUEST && arp_msg.target_ip_address == _ip_address.ipv4_numeric()) {
             ARPMessage arp_rpl;
             arp_rpl.opcode = ARPMessage::OPCODE_REPLY;
             arp_rpl.sender_ethernet_address = _ethernet_address;
             arp_rpl.sender_ip_address = _ip_address.ipv4_numeric();
-            arp_rpl.target_ethernet_address = dst_mac;
-            arp_rpl.target_ip_address = dst_ip;
+            arp_rpl.target_ethernet_address = src_mac;
+            arp_rpl.target_ip_address = src_ip;
 
             EthernetFrame rpl_frame;
             rpl_frame.header().type = frame.header().TYPE_ARP;
             rpl_frame.header().src = _ethernet_address;
-            rpl_frame.header().dst = dst_mac;
+            rpl_frame.header().dst = src_mac;
             rpl_frame.payload() = arp_rpl.serialize();
             _frames_out.emplace(rpl_frame);
         }
@@ -130,25 +113,28 @@ void NetworkInterface::tick(const size_t ms_since_last_tick) {
     // Retransmit ARP request if 5 seconds passed
     for (auto itr = _waiting_ips.begin(); itr != _waiting_ips.end();) {
         if (itr->second <= ms_since_last_tick) {
-            // broadcast ARP request
-            ARPMessage arp_req;
-            arp_req.opcode = ARPMessage::OPCODE_REQUEST;
-            arp_req.sender_ethernet_address = _ethernet_address;
-            arp_req.sender_ip_address = _ip_address.ipv4_numeric();
-            arp_req.target_ethernet_address = ETHERNET_BROADCAST;  // placeholder
-            arp_req.target_ip_address = itr->first;
-
-            EthernetFrame frame;
-            frame.header().type = frame.header().TYPE_ARP;
-            frame.header().src = _ethernet_address;
-            frame.header().dst = ETHERNET_BROADCAST;  // placeholder
-            frame.payload() = arp_req.serialize();
-            _frames_out.emplace(frame);
-
+            broadcast(itr->first);
             itr->second = _default_arp_req_ttl;
         } else {
             itr->second -= ms_since_last_tick;
             itr++;
         }
     }
+}
+
+void NetworkInterface::broadcast(size_t dst_ip) {
+    // broadcast ARP request
+    ARPMessage arp_req;
+    arp_req.opcode = ARPMessage::OPCODE_REQUEST;
+    arp_req.sender_ethernet_address = _ethernet_address;
+    arp_req.sender_ip_address = _ip_address.ipv4_numeric();
+    arp_req.target_ethernet_address = {};  // placeholder
+    arp_req.target_ip_address = dst_ip;
+
+    EthernetFrame frame;
+    frame.header().type = frame.header().TYPE_ARP;
+    frame.header().src = _ethernet_address;
+    frame.header().dst = ETHERNET_BROADCAST;  // placeholder
+    frame.payload() = arp_req.serialize();
+    _frames_out.emplace(frame);
 }

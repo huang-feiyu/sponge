@@ -54,6 +54,8 @@ class NetworkInterface {
     const static size_t _default_arp_item_ttl = 30 * 1000;
     const static size_t _default_arp_req_ttl = 5 * 1000;
 
+    void broadcast(size_t dst_ip);
+
   public:
     //! \brief Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer) addresses
     NetworkInterface(const EthernetAddress &ethernet_address, const Address &ip_address);
