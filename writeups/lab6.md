@@ -1,29 +1,17 @@
-Lab 6 Writeup
-=============
+# Lab 6 Writeup
 
-My name: [your name here]
+> [Checkpoint 6](https://cs144.github.io/assignments/lab6.pdf):
+> the IP router
 
-My SUNet ID: [your sunetid here]
+## IP Router
 
-I collaborated with: [list sunetids here]
+A *router* has several *network interface*s, and can receive Internet datagrams
+on any of them. The router's job is to forward the datagrams it gets according
+to the routing table: a list of rules that tells the router, for any given
+datagram.
 
-I would like to thank/reward these classmates for their help: [list sunetids here]
-
-This lab took me about [n] hours to do. I [did/did not] attend the lab session.
-
-Program Structure and Design of the Router:
-[]
-
-Implementation Challenges:
-[]
-
-Remaining Bugs:
-[]
-
-- Optional: I had unexpected difficulty with: [describe]
-
-- Optional: I think you could make this lab better by: [describe]
-
-- Optional: I was surprised by: [describe]
-
-- Optional: I'm not sure about: [describe]
+What we need to do is to a router that can figure out:
+* keep track of a routing table (the list of forwarding rules, or routes), and
+* forward each datagram it receives:
+  * to the correct next hop
+  * on the correct outgoing NetworkInterface.
