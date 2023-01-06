@@ -15,7 +15,7 @@
 * [x] Checkpoint 3: the TCP sender -- [doc](./writeups/lab3.md)
 * [x] Checkpoint 4: the TCP connection -- [doc](./writeups/lab4.md)
 * [x] Checkpoint 5: the network interface -- [doc](./writeups/lab5.md)
-* [ ] Checkpoint 6: the IP router
+* [x] Checkpoint 6: the IP router -- [doc](./writeups/lab6.md)
 * [ ] Checkpoint 7: putting it all together
 
 ## Sponge quickstart
